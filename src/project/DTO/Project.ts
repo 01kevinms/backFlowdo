@@ -1,5 +1,6 @@
-import { ProjectRole, TaskStatus } from '@prisma/client';
-import { IsString, IsNumber, IsEnum, IsNotEmpty, IsArray, IsOptional, IsEmail, Max, Min, IsInt } from 'class-validator'
+import { ProjectRole} from '@prisma/client';
+import { IsString, IsEnum, IsNotEmpty, IsArray, IsEmail } from 'class-validator'
+import { TaskDTO } from 'src/task/dtos/taskDTO';
 
 export class ProjectDTO {
   @IsString()
@@ -21,49 +22,9 @@ export class AddMemberDTO {
   role:ProjectRole
 }
 
-export class UpdateStatus{
-  @IsEnum(TaskStatus)
-  status: TaskStatus
-}
-
-export class CreateManyTasks{
-  task: TaskDTO[]
-}
-
-export class TaskDTO {
+export class RemoveMemberDTO{
   @IsString()
-  title: string
-
-  @IsString()
-  description: string
-
-  @IsNumber()
-  priority: number
-
-  @IsEnum(TaskStatus)
-  status: TaskStatus
-
-  @IsOptional()
-  comments: CommentDTO[]
-}
-
-export class TaskPendingDTO {
-   @IsString()
-  title: string
-
-  @IsString()
-  description: string
-
-  @IsNumber()
-  priority: number
-
-}
-
-export class Priority{
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  priority:number
+  memberId:string
 }
 
 export class CommentDTO {
@@ -71,4 +32,12 @@ export class CommentDTO {
   @IsNotEmpty()
   content: string
   
+}
+
+export class updateRoleDTO{
+  @IsString()
+  role:ProjectRole
+
+  @IsString()
+  memberId:string
 }

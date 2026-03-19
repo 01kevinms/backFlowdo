@@ -1,6 +1,6 @@
 import { JwtService } from '@nestjs/jwt';
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { LoginDTO, RegisterDTO } from './dto/auth';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { LoginDTO, RegisterDTO, updatePasswordDTO } from './dto/auth';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { jwtConstant } from './constant';
@@ -19,6 +19,7 @@ export class AuthService {
         if(userexistes){
             throw new UnauthorizedException('User already exists');
         }
+        const FirstAvatar = `https://api.dicebear.com/7.x/thumbs/svg?seed=${data.name}`
         const hashedPassword = await bcrypt.hash(data.password, 10)
         const user = await this.prisma.user.create({
             data:{
@@ -26,7 +27,8 @@ export class AuthService {
                 password:hashedPassword
             }
         })
-        return {           
+        return {
+            avatar: FirstAvatar,   
             email:user.email,
             name:user.name
         };
@@ -98,7 +100,8 @@ export class AuthService {
             select:{
                 id:true,
                 name:true,
-                email:true
+                email:true,
+                avatar:true
             },})
 
         if (!user) throw new NotFoundException('User not found')
@@ -131,7 +134,7 @@ export class AuthService {
     }
 
     async getNotification(userId:string){
-    return this.prisma.notification.findMany({
+    const notify=await this.prisma.notification.findMany({
       where:{userId},
       include:{
         activity:true
@@ -140,6 +143,10 @@ export class AuthService {
         createdAt:'desc'
       }
     })
+
+    await this.deleteOldNotifcation()
+
+    return notify
    }
 
     async readeNotifcation(id:string){
@@ -153,6 +160,72 @@ export class AuthService {
       })
 
       return readNotify
+    }
+
+    async updateAvatar(userId:string,avatar:string){
+       
+        return this.prisma.user.update({
+            where:{id:userId},
+            data:{avatar},
+            select:{
+                name:true,
+                avatar:true
+            }
+        })
+    }
+
+    async updatePassword(userId:string,data:updatePasswordDTO){
+        const user = await this.prisma.user.findUnique({
+            where:{id:userId}
+        })
+        if(!user) throw new ForbiddenException()
+
+        const passwordMatch = await bcrypt.compare(data.currentPassword, user.password)
+        if(!passwordMatch) throw new BadRequestException()
+        
+        const hashedPassword = await bcrypt.hash(data.newPassword, 10)
+
+        await this.prisma.user.update({
+            where:{id:userId},
+            data:{password:hashedPassword}
+        })
+
+        return {message:"Senha atualizada com sucesso"}
+    }
+
+    async exitProject(projectId:string,userId:string){
+        const member = await this.prisma.projectMember.findFirst({
+            where:{
+                projectId,
+                userId
+               },include:{
+                user:{
+                    select:{name:true}
+                }
+               }
+        })
+        if(!member ) throw new NotFoundException()
+        if(member.role === 'OWNER') {
+            const owner = await this.prisma.projectMember.count({
+                where:{
+                    projectId,
+                    role:'OWNER'
+                }
+            })
+            if(owner <=1) throw new ForbiddenException('you must transfer ownership before leaving the project')
+
+            }
+            await this.prisma.projectMember.delete({
+              where:{id:member.id}
+            })
+            await this.prisma.notification.create({
+                data:{
+                    type:'MEMBER_LEAVE',
+                    userId:member.userId,
+                    message:`o membro ${member.user.name} saiu do projeto`
+                }
+            })
+            return {message:'you left the project'} 
     }
 
     async deleteOldNotifcation(){
@@ -169,5 +242,12 @@ export class AuthService {
                 }
             }
         })
+    }
+
+    async deleteUser(userId:string){
+        await this.prisma.user.delete({
+            where:{id:userId}
+        })
+        return {message:'user deleted succesfully'}
     }
 }

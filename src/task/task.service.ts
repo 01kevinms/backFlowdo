@@ -2,26 +2,16 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ProjectRole, TaskStatus } from '@prisma/client';
 import { ActivityService } from 'src/activity/activity.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CommentDTO, Priority, TaskPendingDTO } from 'src/project/DTO/Project';
+import { CommentDTO } from 'src/project/DTO/Project';
+import { Priority, TaskPendingDTO } from './dtos/taskDTO';
 
 @Injectable()
 export class TaskService {
     constructor (private prisma:PrismaService,private activityService:ActivityService){}
 
     
-    async getPendingTask(projectId:string,userId:string){
-        const isAllowed = await this.prisma.project.findFirst({
-        where:{
-            id:projectId, 
-            OR:[ { ownerId: userId },
-        { members: { 
-            some: { 
-            userId, 
-                role: 'ADMIN' } } }]},
-        include:{owner:true}
-        })
-        if(!isAllowed) throw new ForbiddenException()
-
+    async getPendingTask(projectId:string){
+    
         return await this.prisma.task.findMany({
         where:{
             projectId,

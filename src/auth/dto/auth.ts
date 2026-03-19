@@ -2,7 +2,7 @@ import { IsEmail, IsNotEmpty, IsString, MinLength } from "class-validator";
 
 export class RegisterDTO{
     @IsNotEmpty()
-    username: string;
+    name: string;
 
     @IsNotEmpty()
     @MinLength(6)
@@ -19,4 +19,18 @@ export class LoginDTO{
     @IsString()
     @MinLength(6)
     password: string;
+}
+
+export class avatarDTO{
+    @IsString()
+    avatar:string
+}
+
+export class updatePasswordDTO{
+    @IsString()
+    currentPassword: string;
+    
+    @IsString()
+    @MinLength(6)
+    newPassword: string;
 }

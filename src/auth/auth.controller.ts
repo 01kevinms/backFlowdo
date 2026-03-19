@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, Post, Put, Request, UseGuards} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Request, UseGuards} from '@nestjs/common';
 
-import { LoginDTO, RegisterDTO } from './dto/auth';
+import { avatarDTO, LoginDTO, RegisterDTO, updatePasswordDTO } from './dto/auth';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
 
@@ -35,8 +35,32 @@ async getNotification(@Request() req){
 return this.AuthService.getNotification(req.user.id)
 }
 
+@UseGuards(AuthGuard)
+@Patch('avatarUser')
+async updateAvatar(@Request()req,@Body() body:avatarDTO){
+    return this.AuthService.updateAvatar(req.user.id,body.avatar)
+}
+
+@UseGuards(AuthGuard)
+@Put('updatePassword')
+async updatePassword(@Request() req,@Body() data:updatePasswordDTO){
+    return this.AuthService.updatePassword(req.user.id,data)
+}
+
 @Put(':notificationId/me')
 async readNotification(@Param('notificationId')notificationId:string){
     return this.AuthService.readeNotifcation(notificationId)
+}
+
+@UseGuards(AuthGuard)
+@Delete('leave/:projectId')
+async exitProject(@Param('projectId') projectId:string,@Request() req){
+    return this.AuthService.exitProject(projectId,req.user.id)
+}
+
+@UseGuards(AuthGuard)
+@Delete('delete/user')
+async deleteUser(@Request() req){
+    return this.AuthService.deleteUser(req.user.id)
 }
 }

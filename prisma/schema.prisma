@@ -7,21 +7,31 @@ datasource db {
   provider = "mysql"
 }
 
-
 model User {
-  id          String       @id @default(uuid())
-  email       String    @unique
-  name        String?   @db.VarChar(100)
-  password    String
-  projects    ProjectMember[]
-  coments     Comment[]
-  project     Project[]
-  task        Task[]     @relation("AssignedTasks")
-  doingTasks  Task[]     @relation("DoingByTasks")
-  pendingTask  Task[] @relation("RequestedTasks")
-  activity      Activity[]
-  notification     Notification[]
-  createdAt   DateTime  @default(now())
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?  @db.VarChar(100)
+  password  String
+  avatar    String?
+
+  ownedProjects Project[]
+  projects      ProjectMember[]
+
+  assignedTasks Task[] @relation("AssignedTasks")
+  doingTasks    Task[] @relation("DoingByTasks")
+  pendingTasks  Task[] @relation("RequestedTasks")
+
+  friendA Friend[] @relation("userA")
+  friendB Friend[] @relation("userB")
+
+  conversationUser1  Conversation[] @relation("conversationUser1")
+  conversationUser2  Conversation[] @relation("conversationUser2")
+  messages     Message[]
+  comments     Comment[]
+  activity     Activity[]
+  notification Notification[]
+
+  createdAt DateTime @default(now())
 
   @@map("users")
 }
@@ -41,11 +51,12 @@ model Project {
 }
 
 model ProjectMember {
-  id        String   @id @default(uuid())
+  id        String        @id @default(uuid())
   projectId String
   userId    String
   role      ProjectRole
-  joinedAt  DateTime @default(now())
+  joinedAt  DateTime       @default(now())
+  status    StatusRequest  @default(PENDING)
 
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -58,8 +69,8 @@ model Task {
   id          String    @id @default(uuid())
   title       String
   description String?
-  status      TaskStatus @default(PENDING)
-  priority    Int        @default(1)
+  status      TaskStatus    @default(PENDING)
+  priority    TaskPriority  @default(LOW)
 
   doingById   String?
   doingBy     User?      @relation("DoingByTasks", fields: [doingById], references: [id])
@@ -119,12 +130,69 @@ model Notification{
   createdAt   DateTime @default(now())
 }
 
+model Friend {
+  id         String  @id  @default(uuid())
+  userAId    String
+  userBId    String
+
+  userA      User   @relation("userA", fields:[userAId], references: [id], onDelete:Cascade)
+  userB      User   @relation("userB", fields:[userBId], references: [id], onDelete:Cascade)
+
+  status      StatusRequest  @default(PENDING)
+  createdAt   DateTime @default(now())
+
+  @@unique([userAId,userBId])
+}
+
+model Conversation {
+  id       String  @id  @default(uuid())
+
+  user1Id   String
+  user2Id   String
+
+  user1     User    @relation("conversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2     User    @relation("conversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  messages   Message[]
+  lastMessage  String?
+  lastMessageAt  DateTime?
+  @@unique([user1Id,user2Id])
+}
+
+model Message {
+  id        String @id  @default(uuid())
+  content   String
+   senderId String
+   conversationId  String
+
+   sender    User  @relation(fields:[senderId], references: [id])
+   conversation  Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+   read       Boolean @default(false)
+   createdAt  DateTime @default(now())
+
+   @@index([conversationId,createdAt])
+   @@index([senderId])
+}
+
+enum StatusRequest {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
 enum TaskStatus {
   PENDING
   TODO
   DOING
   DONE
   REJECTED
+}
+
+enum TaskPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
 }
 
 enum ProjectRole {
@@ -141,4 +209,5 @@ enum ActivityType {
   TASK_APPROVED
   TASK_REJECTED
   MEMBER_ADDED
+  
 }

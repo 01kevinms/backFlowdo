@@ -2,8 +2,8 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 
 import { ActivityService } from './../activity/activity.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { AddMemberDTO, CommentDTO, Priority, ProjectDTO, TaskPendingDTO } from './DTO/Project';
-import { ProjectRole, TaskStatus } from '@prisma/client';
+import { AddMemberDTO, ProjectDTO, updateRoleDTO} from './DTO/Project';
+import {  ProjectRole, StatusRequest} from '@prisma/client';
 
 @Injectable()
 export class ProjectService {
@@ -14,7 +14,8 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
     return await this.prisma.project.findMany({
       where:{members:{
         some:{
-          userId
+          userId,
+          status:StatusRequest.ACCEPTED
         }
       }},
       include:{
@@ -39,15 +40,10 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
         
     }
 
-    async getProjectId(ProjectId:string){
-      const exist = await this.prisma.project.findUnique({
-        where:{id:ProjectId}
-      })
-      if(!exist){
-        throw new BadRequestException('this project dont exist ')
-      }
-      return await this.prisma.project.findUnique({
-        where:{id:exist.id},
+    async getProjectId(projectId:string){
+      
+      const project = await this.prisma.project.findUnique({
+        where:{id:projectId},
         include:{
           task:{
             orderBy:{
@@ -69,18 +65,25 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
             }
           },
           members:{
+            where:{status:StatusRequest.ACCEPTED},
             select:{
               joinedAt:true,
+              status:true,
               role:true,
               user:{
                 select:{
-                  name:true
+                  name:true,
+                  id:true
                 }
               }            
             }
-          }
+          },
         }
       })
+      if(!project) throw new BadRequestException('this project dont exist ')
+
+    return project
+      
     }
 
     async getComments(taskId:string){
@@ -106,7 +109,55 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
       })
     }
 
-    // create logic for when owner do creater project see list users wanted enter and accept
+    async getMemberProject(projectId:string){
+        const exist = await this.prisma.project.findUnique({
+        where:{id:projectId}
+      })
+      if(!exist) throw new BadRequestException('this project dont exist ')
+
+        return this.prisma.projectMember.findMany({
+          where:{
+            projectId,
+            
+          },
+          include:{
+            user:{
+              select:{
+                name:true,
+                id:true
+              }
+            }
+          },
+          orderBy:{
+            role:'asc'
+          }
+        })
+      
+    }
+
+    async getInviteProjects(userId:string){
+      const invites = await this.prisma.projectMember.findMany({
+        where:{status:StatusRequest.PENDING,userId},
+        include:{
+          project:{
+            select:{
+              id:true,
+              name:true
+            }
+          },
+          user:{
+            select:{
+              name:true,
+              id:true
+            }
+          }
+        }
+      })
+      if(!invites) throw new NotFoundException('dont have invites')
+
+        return invites
+    }
+
     async createProject(data:ProjectDTO,ownerId:string){
        const project = await this.prisma.project.create({
             data: {
@@ -115,7 +166,8 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
                 members:{
                   create:{
                     userId:ownerId,
-                    role:"OWNER"
+                    role:"OWNER",
+                    status:StatusRequest.ACCEPTED
                   }
                 },
                 ownerId,             
@@ -148,7 +200,7 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
         where:{
           projectId,
           userId:ownerId,
-          role:'OWNER'
+          role: {in:['OWNER', 'ADMIN']}
         }
       })
       if(!Isowner){
@@ -167,27 +219,151 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
     where: {
       projectId,
       userId: user.id,
+      status:StatusRequest.ACCEPTED
     },
   });
 
   if (alreadyMember) {
     throw new ConflictException('User already in project');
   }
-      const addMember= await this.prisma.projectMember.create({
+      const invite = await this.prisma.projectMember.create({
         data:{
           projectId,
           userId:user.id,
-          role:'MEMBER'
+          role: data.role || 'MEMBER',
+          status:StatusRequest.PENDING
         }
       })
 
-    await this.activityService.createActivity({
-        type:'MEMBER_ADDED',
-        projectId,
-        userId: user.id
-    })
+      return invite
+    }
 
-      return addMember
+    async acceptInviteProject(inviteId:string,userId:string){
+   
+      const invite = await this.prisma.projectMember.findFirst({
+        where:{
+          userId,
+          status:StatusRequest.PENDING
+        }
+      })
+      if(!invite) throw new NotFoundException('invite not found')
+      
+      await this.prisma.projectMember.update({
+        where:{id:inviteId},
+        data:{status:StatusRequest.ACCEPTED}
+      })
+
+      await this.activityService.createActivity({
+        type:'MEMBER_ADDED',
+        projectId:invite.projectId,
+        userId
+    })
+    return {message:'Invite accepted'}
+    }
+
+    async rejectInviteProject(inviteId:string,memberId:string){
+      await this.prisma.projectMember.update({
+        where:{id:inviteId},
+        data:{status:StatusRequest.REJECTED}
+      })
+
+      await this.prisma.projectMember.delete({
+        where:{id:inviteId,userId:memberId}
+      })
+      
+      return {message:'invite rejected'}
+    }
+
+    async updateRole(data:updateRoleDTO,ownerId:string,projectId:string){
+      const isOwnerAdm = await this.prisma.projectMember.findFirst({
+        where:{
+          projectId,
+          userId:ownerId,
+          role:{
+            in:['OWNER','ADMIN']}
+          },
+          include:{user:{select:{name:true}}}
+      })
+      if(!isOwnerAdm) throw new ForbiddenException('you dont have permission for this')
+      if(isOwnerAdm.role === 'ADMIN' && data.role === 'OWNER') throw new ForbiddenException('admin cannot promote to owner')
+      
+      const member = await this.prisma.projectMember.findUnique({
+        where:{id:data.memberId}
+      })
+      if(!member) throw new NotFoundException('Member not found')
+      if(member.userId ===ownerId) throw new ForbiddenException('you cannot change your own role')  
+        
+       return await this.prisma.$transaction(async(tx)=>{
+
+          const updateRole = await tx.projectMember.update({
+            where:{id:data.memberId},
+            data:{role:data.role}
+          })
+        await tx.notification.create({
+          data:{
+            type:'ROLE_UPDATED',
+            userId:member.userId,
+            message:`${isOwnerAdm.user.name} change you role`
+          }
+        })
+        
+        return updateRole
+      })
+    }
+
+    async cancelInvite(inviteId:string,userId:string){
+      const invite = await this.prisma.projectMember.findFirst({
+        where:{id:inviteId, status:StatusRequest.PENDING}
+      })
+      if (!invite) throw new NotFoundException("Invite not found")
+
+     const isOwnerAdm = await this.prisma.projectMember.findFirst({
+      where:{userId,role:{in:["OWNER","ADMIN"]}}
+     })
+     if(!isOwnerAdm) throw new ForbiddenException("you dont have permission for this")
+
+      await this.prisma.projectMember.delete({
+        where:{id:inviteId},
+      })
+
+      return {message:"invite cancel succefully"}
+    }
+
+    async removeMember(projectId: string, memberId: string, ownerId: string) {
+
+  const owner = await this.prisma.projectMember.findFirst({
+    where:{
+      projectId,
+      userId: ownerId,
+      role:{ in:['OWNER','ADMIN'] }
+    }
+  })
+
+  if(!owner)
+    throw new ForbiddenException(
+      'only owner or admin can remove member'
+    )
+
+  const member = await this.prisma.projectMember.findFirst({
+    where:{
+      projectId,
+      userId: memberId
+    }
+  })
+
+  if(!member)
+    throw new NotFoundException('Member not found')
+
+  if(member.role === 'OWNER')
+    throw new ForbiddenException('Cannot remove project owner')
+
+  await this.prisma.projectMember.delete({
+    where:{
+      id: member.id
+    }
+  })
+
+  return { message:'User removed successfully' }
     }
 
     async deleteProject(projectId:string,userId:string){

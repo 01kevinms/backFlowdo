@@ -10,7 +10,7 @@ async function bootstrap() {
       origin:['http://localhost:5176'],
       credentials:true,
       allowedHeaders:'Content-Type, Authorization',
-      methods:'GET,POST,PUT,DELETE,OPTIONS',
+      methods:'GET,POST,PUT,DELETE,PATCH',
     }
   });
 

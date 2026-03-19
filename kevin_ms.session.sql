@@ -1,1 +1,1 @@
-SELECT * FROM kevin_st.projectmember
+SELECT user1Id,user2Id, COUNT(*) FROM kevin_st.conversation GROUP BY user1Id,user2Id, HAVING COUNT(*) > 1;

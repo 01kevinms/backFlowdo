@@ -1,7 +1,8 @@
-import { CommentDTO, Priority, TaskPendingDTO, UpdateStatus } from 'src/project/DTO/Project';
+import { CommentDTO} from 'src/project/DTO/Project';
 import { TaskService } from './task.service';
 import { Body, Controller, Delete, Get, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { Priority, TaskPendingDTO, UpdateStatus } from './dtos/taskDTO';
 
 @Controller('task')
 @UseGuards(AuthGuard)
@@ -10,8 +11,8 @@ export class TaskController {
 
     
 @Get(':projectId/pending')
-async taskPending(@Request() req, @Param('projectId') projectId:string){
-    return this.service.getPendingTask(projectId,req.user.id)
+async taskPending(@Param('projectId') projectId:string){
+    return this.service.getPendingTask(projectId)
 }
 
 @Post(':projectId/queue')

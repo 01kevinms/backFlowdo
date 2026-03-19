@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `projectmember` ADD COLUMN `status` ENUM('PENDING', 'ACCEPTED', 'REJECTED') NOT NULL DEFAULT 'PENDING';
