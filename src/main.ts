@@ -7,7 +7,7 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule,{
     cors:{
-      origin:['http://localhost:5176'],
+      origin:['https://interface-flowdo.vercel.app'],
       credentials:true,
       allowedHeaders:'Content-Type, Authorization',
       methods:'GET,POST,PUT,DELETE,PATCH',
