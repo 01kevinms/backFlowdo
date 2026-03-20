@@ -195,7 +195,7 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
 
     }
 
-    async addMemberProject(projectId:string,ownerId:string,data:AddMemberDTO){
+  async addMemberProject(projectId:string,ownerId:string,data:AddMemberDTO){
       const Isowner = await this.prisma.projectMember.findFirst({
         where:{
           projectId,
@@ -215,27 +215,27 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
       }
 
        // Verifica se já é membro do projeto
-  const alreadyMember = await this.prisma.projectMember.findFirst({
-    where: {
-      projectId,
-      userId: user.id,
-      status:StatusRequest.ACCEPTED
-    },
-  });
-
-  if (alreadyMember) {
-    throw new ConflictException('User already in project');
-  }
-      const invite = await this.prisma.projectMember.create({
-        data:{
+      const alreadyMember = await this.prisma.projectMember.findFirst({
+        where: {
           projectId,
-          userId:user.id,
-          role: data.role || 'MEMBER',
-          status:StatusRequest.PENDING
-        }
-      })
+          userId: user.id,
+          status:StatusRequest.ACCEPTED
+        },
+      });
 
-      return invite
+      if (alreadyMember) {
+        throw new ConflictException('User already in project');
+      }
+          const invite = await this.prisma.projectMember.create({
+            data:{
+              projectId,
+              userId:user.id,
+              role: data.role || 'MEMBER',
+              status:StatusRequest.PENDING
+            }
+          })
+
+          return invite
     }
 
     async acceptInviteProject(inviteId:string,userId:string){
@@ -329,7 +329,7 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
       return {message:"invite cancel succefully"}
     }
 
-    async removeMember(projectId: string, memberId: string, ownerId: string) {
+async removeMember(projectId: string, memberId: string, ownerId: string) {
 
   const owner = await this.prisma.projectMember.findFirst({
     where:{
@@ -364,7 +364,7 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
   })
 
   return { message:'User removed successfully' }
-    }
+}
 
     async deleteProject(projectId:string,userId:string){
         const project = await this.prisma.project.findUnique({
