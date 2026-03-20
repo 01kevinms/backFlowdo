@@ -116,7 +116,7 @@ model Activity{
 
 model Notification{
   id         String    @id  @default(uuid())
-  type       String
+  type       ActivityType
   message    String
 
   activityId  String?
@@ -209,5 +209,9 @@ enum ActivityType {
   TASK_APPROVED
   TASK_REJECTED
   MEMBER_ADDED
-  
+  ROLE_UPDATED
+  FRIEND_REQUEST_ACCEPTED
+  FRIEND_REQUEST_REJECTED
+  NEW_MESSAGE
+  MEMBER_LEAVE
 }

@@ -329,42 +329,42 @@ constructor(private prisma:PrismaService,private activityService:ActivityService
       return {message:"invite cancel succefully"}
     }
 
-async removeMember(projectId: string, memberId: string, ownerId: string) {
+    async removeMember(projectId: string, memberId: string, ownerId: string) {
 
-  const owner = await this.prisma.projectMember.findFirst({
-    where:{
-      projectId,
-      userId: ownerId,
-      role:{ in:['OWNER','ADMIN'] }
+      const owner = await this.prisma.projectMember.findFirst({
+        where:{
+          projectId,
+          userId: ownerId,
+          role:{ in:['OWNER','ADMIN'] }
+        }
+      })
+
+      if(!owner)
+        throw new ForbiddenException(
+          'only owner or admin can remove member'
+        )
+
+      const member = await this.prisma.projectMember.findFirst({
+        where:{
+          projectId,
+          userId: memberId
+        }
+      })
+
+      if(!member)
+        throw new NotFoundException('Member not found')
+
+      if(member.role === 'OWNER')
+        throw new ForbiddenException('Cannot remove project owner')
+
+      await this.prisma.projectMember.delete({
+        where:{
+          id: member.id
+        }
+      })
+
+      return { message:'User removed successfully' }
     }
-  })
-
-  if(!owner)
-    throw new ForbiddenException(
-      'only owner or admin can remove member'
-    )
-
-  const member = await this.prisma.projectMember.findFirst({
-    where:{
-      projectId,
-      userId: memberId
-    }
-  })
-
-  if(!member)
-    throw new NotFoundException('Member not found')
-
-  if(member.role === 'OWNER')
-    throw new ForbiddenException('Cannot remove project owner')
-
-  await this.prisma.projectMember.delete({
-    where:{
-      id: member.id
-    }
-  })
-
-  return { message:'User removed successfully' }
-}
 
     async deleteProject(projectId:string,userId:string){
         const project = await this.prisma.project.findUnique({
