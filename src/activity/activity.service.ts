@@ -1,4 +1,3 @@
-import { Or } from './../../generated/prisma/internal/prismaNamespace';
 import { Injectable } from '@nestjs/common';
 import { ActivityType } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
