@@ -6,9 +6,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   console.log('INICIOU');
-  console.log('DATABASE_URL:', process.env.DATABASE_URL);
-  console.log('DATABASE_URL:', process.env.DATABASE_PORT);
-
+  console.log('ENV:', process.env.DATABASE_URL);
   try{
 
     const app = await NestFactory.create(AppModule,{
